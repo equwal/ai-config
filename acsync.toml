@@ -42,6 +42,7 @@ adopt_heading = "## MANDATORY on the Windows PC: PowerShell 7.6 syntax"
 [rules.undo-commands]
 machines = ["pc"]        # g never had it; add "g" to roll it out there
 adopt_heading = "## MANDATORY: Undo commands are copy-only"
+[rules.patches]
 
 # ---------- skills (all 8 skills folders) ----------
 # ste-writing: retired; must not exist in any skills folder.
