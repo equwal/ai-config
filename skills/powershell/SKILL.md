@@ -64,6 +64,11 @@ metadata:
 - `Get-Content` returns lines array — `-Raw` for single string
 - `Select-Object` creates new object — properties are copies, not references
 
+## Claude Code PowerShell tool: delete guard
+- The tool scans the command text. It blocks the call when the text has a delete word (`rm`, `rmdir`, `Remove-Item`) and a token that looks like a top-level path (`/`, `/home`, `/1KB`). The error is `Remove-Item on system path '<token>' is blocked`.
+- The guard also reads inside a single-quoted `ssh` string, and it reads a division such as `$sum/1KB` as a path.
+- Put each delete in its own call, with the full exact path. Keep `cd /`, `df -h /home`, and `/` arithmetic out of that call.
+
 ## Cross-Platform
 - `pwsh` is PowerShell 7+ — `powershell` is Windows PowerShell 5.1
 - Paths use `/` or `\` — `Join-Path` for portable
