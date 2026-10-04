@@ -150,11 +150,8 @@ env = { MEMSTATE_DB = '${home}\.memstate\memstate.db' }
 
 # ---------- hooks ----------
 [files."${home}/.copilot/hooks/notification-hooks.json"]
-src = "hooks/copilot-notification-hooks.${os}.json"
-
-[files."${home}/.claude/hooks/notify-done.ps1"]
-src = "hooks/notify-done.ps1"
-machines = ["pc"]
+src = "hooks/copilot-notification-hooks.linux.json"
+machines = ["g"]
 
 [files."${home}/.claude/hooks/notify-done.sh"]
 src = "hooks/notify-done.sh"
