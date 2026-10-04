@@ -1,0 +1,1 @@
+Desktop g is Wayland-only: no X11. Launch Brave with ~/.local/bin/brave; pass --ozone-platform=wayland to Electron/Chromium apps and QT_QPA_PLATFORM=wayland to Qt apps; never install X servers or X-only tools on g.

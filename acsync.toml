@@ -1,0 +1,157 @@
+# Canonical AI config for all 8 targets (4 AIs x PC "pc" + desktop "g").
+# Rendered by acsync (github.com/equwal/agent-config-sync). Machine values live in
+# ~/.config/acsync/machine.toml on each machine. Its [vars] must set the private
+# network values the rules use: owner, hub_host, hub_peer_vps, hub_wg_ip, hub_cert,
+# g_ip, g_user. A rule whose var is missing is skipped on that machine.
+
+[targets.claude]
+instructions = "${home}/.claude/CLAUDE.md"
+skills = ["${home}/.claude/skills"]
+mcp = { format = "json", path = "${home}/.claude.json", defaults = { type = "stdio" } }
+
+[targets.codex]
+instructions = "${home}/.codex/AGENTS.md"
+skills = ["${home}/.codex/skills"]
+mcp = { format = "codex", path = "${home}/.codex/config.toml", defaults = { startup_timeout_sec = 60 } }
+
+[targets.copilot]
+instructions = "${home}/.copilot/copilot-instructions.md"
+skills = ["${home}/.copilot/skills"]
+mcp = { format = "json", path = "${home}/.copilot/mcp-config.json", defaults = { type = "stdio", tools = ["*"] } }
+
+[targets.antigravity]
+instructions = "${home}/.gemini/GEMINI.md"
+skills = ["${home}/.gemini/skills", "${home}/.gemini/antigravity/skills"]
+mcp = { format = "json", path = "${home}/.gemini/config/mcp_config.json" }
+
+# ---------- rules (one file each; order = order for newly added blocks) ----------
+[rules.coop]
+[rules.install]
+[rules.no-user-todo]
+targets = ["claude", "codex", "copilot", "antigravity"]
+file.claude = "${home}/.claude/rules/no-user-todo.md"
+[rules.ponytail]
+targets = ["codex"]
+[rules.windows-powershell]
+targets = ["codex", "copilot", "antigravity"]
+machines = ["pc"]
+adopt_heading = "## MANDATORY on the Windows PC: PowerShell 7.6 syntax"
+[rules.tooling]
+[rules.speckit]          # rules/speckit.<target>.md per target
+[rules.wayland]
+[rules.undo-commands]
+machines = ["pc"]        # g never had it; add "g" to roll it out there
+adopt_heading = "## MANDATORY: Undo commands are copy-only"
+
+# ---------- skills (all 8 skills folders) ----------
+# ste-writing: retired; must not exist in any skills folder.
+[skills.agent-creator]
+[skills.agent-manager]
+[skills.api-contract-testing]
+[skills.call-transcript]
+[skills.chrome]
+[skills.coop]
+[skills.deploy-handoff]
+only.claude = ["g"]      # the PC uses the deploy-handoff plugin instead
+[skills.docs-manage]
+[skills.docs-search]
+[skills.dynamic-analysis]
+[skills.i-have-adhd]
+[skills.impactful-writing]
+[skills.learn-mode]
+[skills.memstate]
+[skills.ponytail]
+[skills.powershell]
+[skills.regression-bisect]
+[skills.skill-finder]
+[skills.skill-learning]
+[skills.spaced-repetition]
+[skills.sshp]
+[skills.ste100]
+[skills.structural-refactor]
+[skills.verification-before-completion]
+
+# ---------- MCP servers ----------
+[mcp.coop]
+command = "${coop_bin}"
+args = ["mcp"]
+[mcp.coop.target.codex]
+default_tools_approval_mode = "approve"
+
+[mcp.headroom]
+command = "${headroom_bin}"
+args = ["mcp", "serve"]
+
+[mcp.memstate]
+command = "${node}"
+args = ["${memstate_js}"]
+env = { MEMSTATE_ADDR = "${memstate_addr}" }
+
+[mcp.context7]
+url = "https://mcp.context7.com/mcp"
+targets = ["claude", "copilot", "codex"]
+target.claude = { type = "http" }
+target.copilot = { type = "http" }
+
+[mcp.ideamine]
+command = "${node}"
+args = ["${home_posix}/.claude/plugins/marketplaces/ideamine/bin/ideamine.js", "mcp", "--plugin"]
+targets = ["copilot", "antigravity", "codex"]
+
+[mcp.sshp]
+command = '${home}\AppData\Local\Programs\Python\Launcher\py.exe'
+args = ["-3", '${home}\.local\share\sshp-ai\sshp_mcp.py']
+target.copilot = { type = "local" }
+
+# PC-only servers
+[mcp.windows-mcp]
+machines = ["pc"]
+command = '${home}\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts\uvx.exe'
+args = ["windows-mcp", "serve", "--transport", "stdio"]
+
+[mcp.tokensave]
+machines = ["pc"]
+command = "cmd"
+args = ["/c", '${home}\.tokensave-none\serve-tokensave.cmd']
+
+[mcp.qwen]
+machines = ["pc"]
+command = '${home}\AppData\Local\Programs\Python\Python314\Scripts\uv.exe'
+args = ["run", "--script", '${home}\mcp-servers\qwen-local\server.py']
+env = { QWEN_MODEL = "huihui_ai/qwen3.5-abliterated:9b" }
+
+[mcp.anyquery]
+machines = ["pc"]
+command = "anyquery"
+args = ["mcp", "--stdio"]
+
+[mcp.cclsp]
+machines = ["pc"]
+command = "node"
+args = ["-r", '${home}\.config\claude\cclsp-exit-on-stdin-end.cjs', '${home}\AppData\Roaming\npm\node_modules\cclsp\dist\index.js']
+env = { CCLSP_CONFIG_PATH = '${home}\.config\claude\cclsp.json' }
+
+[mcp.codebase-memory-mcp]
+machines = ["pc"]
+command = "${home_posix}/AppData/Local/Programs/codebase-memory-mcp/codebase-memory-mcp.exe"
+args = []
+env = { CBM_RUNTIME_DIR = "${home_posix}/.cache/cbm-runtime" }
+
+[mcp.shipyard]
+machines = ["pc"]
+targets = ["copilot", "antigravity", "codex"]
+command = "node"
+args = ['${home}\shipyard\bin\shipyard.js']
+env = { MEMSTATE_DB = '${home}\.memstate\memstate.db' }
+
+# ---------- hooks ----------
+[files."${home}/.copilot/hooks/notification-hooks.json"]
+src = "hooks/copilot-notification-hooks.${os}.json"
+
+[files."${home}/.claude/hooks/notify-done.ps1"]
+src = "hooks/notify-done.ps1"
+machines = ["pc"]
+
+[files."${home}/.claude/hooks/notify-done.sh"]
+src = "hooks/notify-done.sh"
+machines = ["g"]

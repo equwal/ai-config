@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "agent-creator",
+  "owner": "jeremylongshore",
+  "repo": "claude-code-plugins-plus-skills",
+  "path": "plugins/skill-enhancers/skill-creator/skills/agent-creator",
+  "branch": "main",
+  "sha": "8a4078487bc6833be352e5529c738445f9116d3f",
+  "source": "manual"
+}

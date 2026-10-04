@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "agentStop": [
+      {
+        "timeoutSec": 15,
+        "powershell": "pwsh -NoProfile -File \"C:\\Users\\Administrator\\.claude\\hooks\\notify-done.ps1\" 'Copilot CLI' 'Turn finished'",
+        "type": "command"
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "agentStop": [
+      {
+        "type": "command",
+        "bash": "/home/jose/.claude/hooks/notify-done.sh 'Copilot CLI' 'Turn finished'",
+        "timeoutSec": 15
+      }
+    ]
+  }
+}

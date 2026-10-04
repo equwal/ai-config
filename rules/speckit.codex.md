@@ -1,0 +1,1 @@
+Spec-first work: in a new project run `specify init <name> --integration codex` (CLI: Spec Kit; older docs say `--ai codex`) and use its /speckit-specify, /speckit-plan, /speckit-tasks skills (agent commands /specify, /plan, /tasks) before building.
