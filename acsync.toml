@@ -147,12 +147,3 @@ targets = ["copilot", "antigravity", "codex"]
 command = "node"
 args = ['${home}\shipyard\bin\shipyard.js']
 env = { MEMSTATE_DB = '${home}\.memstate\memstate.db' }
-
-# ---------- hooks ----------
-[files."${home}/.copilot/hooks/notification-hooks.json"]
-src = "hooks/copilot-notification-hooks.linux.json"
-machines = ["g"]
-
-[files."${home}/.claude/hooks/notify-done.sh"]
-src = "hooks/notify-done.sh"
-machines = ["g"]
