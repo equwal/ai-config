@@ -137,6 +137,31 @@ Give file paths, not pasted content. Every brief has these parts:
   step. Then send me what the user must do, why, the URL of the deepest page, and the
   steps. Call `set_state blocked`."
 - Limits: the file scope, no push, no deploy, no secrets, no out-of-scope fixes.
+- Denials: "If the user or a permission check denies a command, do not run it again
+  and do not work around it. Report the denied step to me and continue with other work."
+- Status: "At each step change, write one line to memstate `agent_status.<your name>`
+  with scope `user`: state, current step, last proof."
+
+## Status dashboard (zero tokens)
+
+Do not spend model tokens to show the user the fleet. Each agent writes its one-line
+status to memstate `agent_status.<name>` (scope `user`). A plain script, not a model,
+reads those keys and renders a small HTML page that refreshes itself. The user opens
+the page. You read the same keys when you check the fleet.
+
+## Resources
+
+On a host with little RAM, the cap alone is not enough. Five agents that each start a
+build can exhaust memory and kill all five.
+
+- Run at most one heavy job at a time: a large build, a VM, an emulator, a model load.
+  Give heavy tasks a lock (memstate `agent_manager.heavy_lock` with the holder's name)
+  and queue the others.
+- Before you start an agent or a heavy job, check free RAM. If it is below the gate
+  (default 2 GB for an agent, 4 GB for a heavy job), wait for a slot to finish. Do not
+  start it anyway.
+- When memory runs low while agents run, pause the newest agent that does not hold the
+  heavy lock. Do not stop the agent that holds it.
 
 ## Check the fleet
 
