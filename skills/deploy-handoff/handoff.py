@@ -7,6 +7,11 @@ profile that brave_profile names in the user config file, or else in the default
 browser. It shows a small dialog with the steps. It never clicks for the user.
 It prints the answer of the user as one JSON object on stdout.
 
+The command "terminal" shows the same dialog for a step at a prompt in a terminal,
+for example the install question of a tool or a sign-in of a command line program.
+It opens no page. The caller starts the program in a terminal that the user sees,
+and stops at the prompt. The script never types the answer for the user.
+
 The command "browser --fresh" starts a separate browser with a fresh profile for
 the browser-driver agent of this plugin. Use it only if the user asks for it.
 Playwright MCP controls that browser through a local port.
@@ -44,7 +49,6 @@ try:
 except ImportError:
     HAVE_TK = False
 
-SHIPPED_CONFIG = Path(__file__).with_name("config.toml")
 USER_CONFIG = (
     Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     / "deploy-handoff"
@@ -69,6 +73,7 @@ PR_STEPS = (
     'Click "Create pull request".',
 )
 HEADING = "Do these steps in your browser:"
+TERMINAL_HEADING = "Do these steps in the terminal:"
 FINISH = (
     'When you finish, click "Done".\n'
     'If you cannot finish, write the reason in the note. Then click "Not done".'
@@ -76,6 +81,10 @@ FINISH = (
 WARNING = (
     "Claude does not click for you. Before you sign in, make sure that the address bar "
     "shows the site above. Do not type a password, key, or card number in this window."
+)
+TERMINAL_WARNING = (
+    "Claude does not type the answer for you. Do not type a password, key, or card number "
+    "in this window."
 )
 
 # A plain DNS name in lowercase ASCII. The script refuses all other host forms,
@@ -96,23 +105,30 @@ class HandoffError(Exception):
 
 @dataclass(frozen=True)
 class Request:
-    """A page to open, and the steps that the user must do on it."""
+    """A page to open, or a terminal, and the steps that the user must do there."""
 
     title: str
-    url: str
+    # None for a step in a terminal. Then place names the terminal.
+    url: str | None
     steps: tuple[str, ...]
     # For a pull request: the repository as "owner/name", and the head branch.
     pr: tuple[str, str] | None = None
+    # For a step in a terminal: where the prompt is, for example the name of a terminal tab.
+    place: str | None = None
+
+    def where(self) -> str:
+        """Return the line that tells the user where to do the steps."""
+        if self.url is None:
+            return f"Where: {self.place}"
+        return f"Site: {urlsplit(self.url).hostname}"
 
 
-def match_domain(host: str, domains: Iterable[str]) -> str | None:
-    """Return the most specific domain that is host or a parent domain of host."""
-    matches = [domain for domain in domains if host == domain or host.endswith("." + domain)]
-    return max(matches, key=len, default=None)
+def check_url(url: str) -> None:
+    """Raise HandoffError if url is not an https URL with a plain host name.
 
-
-def check_url(url: str, domains: Iterable[str]) -> str:
-    """Return the domain that allows url. Raise HandoffError if the script must not open url."""
+    There is no list of allowed hosts: the user asks Claude to use only sites he trusts.
+    The dialog shows the host, so the user can compare it with the address bar.
+    """
     if "\\" in url or not URL_CHARS_RE.fullmatch(url):
         raise HandoffError(
             f"The URL must be printable ASCII with no spaces or backslashes: {url!r}"
@@ -125,13 +141,6 @@ def check_url(url: str, domains: Iterable[str]) -> str:
     # The netloc must be the host only: no user name, no password, and no port.
     if parts.scheme != "https" or parts.netloc.lower() != host or not HOST_RE.fullmatch(host):
         raise HandoffError(f"The URL must use https and a plain host name: {url}")
-    domain = match_domain(host, domains)
-    if domain is None:
-        raise HandoffError(
-            f"{host} is not an allowed host. Ask the user to add it to allowed_hosts in "
-            f"{USER_CONFIG}. Do not add it yourself."
-        )
-    return domain
 
 
 def check_text(title: str, steps: Iterable[str]) -> None:
@@ -146,28 +155,22 @@ def check_text(title: str, steps: Iterable[str]) -> None:
             )
 
 
+def check_place(place: str) -> None:
+    """Raise HandoffError if place does not name a terminal in a few printable words."""
+    words = len(place.split())
+    if not 0 < words <= MAX_STEP_WORDS or not place.isprintable():
+        raise HandoffError(
+            f"The place is not a short name of a terminal ({words} words). "
+            f"Give 1 to {MAX_STEP_WORDS} printable words, for example the name of the tab."
+        )
+
+
 def read_config(path: Path) -> dict[str, object]:
     """Return the data of the TOML file at path."""
     try:
         return tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:
         raise HandoffError(f"Cannot read {path}: {exc}") from exc
-
-
-def read_hosts(path: Path) -> list[str]:
-    """Return the allowed_hosts list of the TOML file at path."""
-    hosts = read_config(path).get("allowed_hosts", [])
-    if not isinstance(hosts, list) or not all(
-        isinstance(host, str) and HOST_RE.fullmatch(host) for host in hosts
-    ):
-        raise HandoffError(f"{path}: allowed_hosts must be a list of lowercase host names.")
-    return hosts
-
-
-def allowed_hosts() -> list[str]:
-    """Return the hosts in the shipped file, and in the user file if it exists."""
-    paths = [SHIPPED_CONFIG, USER_CONFIG] if USER_CONFIG.is_file() else [SHIPPED_CONFIG]
-    return [host for path in paths for host in read_hosts(path)]
 
 
 def brave_profile() -> str | None:
@@ -472,10 +475,6 @@ class Dialog:
         self.root.geometry(f"+{round(24 * scale)}-{round(80 * scale)}")
         self.root.protocol("WM_DELETE_WINDOW", lambda: self.finish("not_done"))
 
-        parts = urlsplit(request.url)
-        shown = f"https://{parts.netloc}{parts.path}"
-        if len(shown) > 80:
-            shown = shown[:77] + "..."
         steps = "\n".join(f"{number}. {step}" for number, step in enumerate(request.steps, 1))
         # Tk deletes a font when its Python object goes away, so the dialog keeps it.
         self.bold = tkfont.nametofont("TkDefaultFont").copy()
@@ -484,14 +483,23 @@ class Dialog:
         frame.grid()
         # The user must see first what to do, and then where to do it.
         ttk.Label(frame, text=request.title, font=self.bold, wraplength=wrap).grid(sticky="w")
-        ttk.Label(frame, text=HEADING, font=self.bold).grid(sticky="w", pady=(8, 0))
+        heading = HEADING if request.url is not None else TERMINAL_HEADING
+        ttk.Label(frame, text=heading, font=self.bold).grid(sticky="w", pady=(8, 0))
         ttk.Label(frame, text=steps, wraplength=wrap, justify="left").grid(sticky="w")
-        site = ttk.Label(frame, text=f"Site: {parts.hostname}", font=self.bold)
-        site.grid(sticky="w", pady=(8, 0))
-        link = ttk.Label(frame, text=shown, foreground="blue", cursor="hand2", wraplength=wrap)
-        link.grid(sticky="w")
-        link.bind("<Button-1>", lambda _event: reopen())
-        for text, color in ((FINISH, ""), (WARNING, "#b00020")):
+        where = ttk.Label(frame, text=request.where(), font=self.bold, wraplength=wrap)
+        where.grid(sticky="w", pady=(8, 0))
+        warning = TERMINAL_WARNING
+        if request.url is not None:
+            # A step on a page: show the address, and open the page again on a click.
+            parts = urlsplit(request.url)
+            shown = f"https://{parts.netloc}{parts.path}"
+            if len(shown) > 80:
+                shown = shown[:77] + "..."
+            link = ttk.Label(frame, text=shown, foreground="blue", cursor="hand2", wraplength=wrap)
+            link.grid(sticky="w")
+            link.bind("<Button-1>", lambda _event: reopen())
+            warning = WARNING
+        for text, color in ((FINISH, ""), (warning, "#b00020")):
             label = ttk.Label(frame, text=text, foreground=color, wraplength=wrap, justify="left")
             label.grid(sticky="w", pady=(8, 0))
         ttk.Label(frame, text="Note for Claude (optional):").grid(sticky="w", pady=(8, 0))
@@ -537,7 +545,7 @@ class MenuDialog:
         steps = [f"{number}. {step}" for number, step in enumerate(request.steps, 1)]
         self.items = [
             *steps,
-            f"Site: {urlsplit(request.url).hostname}",
+            request.where(),
             "If you cannot finish, type the reason and press Enter.",
             self.DONE,
             self.NOT_DONE,
@@ -592,6 +600,16 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     page.add_argument(
         "--no-open", action="store_true", help="show only the dialog: the page is already open"
     )
+    terminal = commands.add_parser(
+        "terminal", parents=[common], help="show the steps for a prompt in a terminal"
+    )
+    terminal.add_argument("--title", required=True, help="the action, for example: Install 1.2")
+    terminal.add_argument(
+        "--where", required=True, help="where the prompt is, for example the name of the tab"
+    )
+    terminal.add_argument(
+        "--step", action="append", required=True, help="one step for the user (give it again)"
+    )
     pr = commands.add_parser("pr", parents=[common], help="open the GitHub pull request form")
     pr.add_argument("--title", required=True, help="the title of the pull request")
     body = pr.add_mutually_exclusive_group()
@@ -630,18 +648,24 @@ def main(argv: list[str] | None = None) -> int:
                     "use the Brave profile of the user."
                 )
             return report(run_browser(args.exe))
-        hosts = allowed_hosts()
-        if args.command == "pr":
-            request = pr_request(args)
-        else:
+        if args.command == "terminal":
+            # A step at a prompt in a terminal has no page: no host to check, nothing to open.
             check_text(args.title, args.step)
-            request = Request(args.title, args.url, tuple(args.step))
-        check_url(request.url, hosts)
-        # With --no-open, the caller drove a browser to the page already.
-        if args.command == "pr" or not args.no_open:
-            open_page(request.url)
+            check_place(args.where)
+            request = Request(args.title, None, tuple(args.step), place=args.where)
+        else:
+            if args.command == "pr":
+                request = pr_request(args)
+            else:
+                check_text(args.title, args.step)
+                request = Request(args.title, args.url, tuple(args.step))
+            check_url(str(request.url))
+            # With --no-open, the caller drove a browser to the page already.
+            if args.command == "pr" or not args.no_open:
+                open_page(str(request.url))
+        url = request.url
         show = Dialog if HAVE_TK else MenuDialog
-        dialog = show(request, args.timeout, lambda: open_page(request.url))
+        dialog = show(request, args.timeout, lambda: open_page(url) if url else None)
     except HandoffError as exc:
         return report({"status": "error", "error": str(exc)})
     status, note = dialog.run()
