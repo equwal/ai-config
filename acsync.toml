@@ -47,6 +47,7 @@ adopt_heading = "## MANDATORY: Undo commands are copy-only"
 [rules.email-patches]
 [rules.hand-written]
 [rules.no-bak]
+[rules.license]
 
 # ---------- skills (all 8 skills folders) ----------
 # ste-writing: retired; must not exist in any skills folder.
@@ -54,6 +55,7 @@ adopt_heading = "## MANDATORY: Undo commands are copy-only"
 [skills.agent-manager]
 [skills.api-contract-testing]
 [skills.call-transcript]
+[skills.ccai-license]
 [skills.chrome]
 [skills.coop]
 [skills.deploy-handoff]
