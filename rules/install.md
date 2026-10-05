@@ -11,7 +11,7 @@ An install task is done only when every AI on both computers has the thing. That
 
 Computers: the Windows PC, and the Linux desktop `g` (${g_ip}, `ssh ${g_user}@${g_ip}`).
 
-- Install, register, or copy the thing for each of the 8 targets. Back up each config file before you edit it.
+- Install, register, or copy the thing for each of the 8 targets. Commit each config file in its git repo before you edit it (rule no-bak).
 - If the thing has a GitHub gist (for example the agent-manager skill), edit the gist too, so that it matches the installed copy: `gh gist edit <id> -f <file> <local file>`.
 - If an AI is not installed on a computer yet, write its config files anyway, so that it gets them at its first start. Report each missing AI.
 - Verify each target with a command. Report one line for each of the 8 targets: done, or blocked with the cause.
