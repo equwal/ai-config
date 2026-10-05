@@ -2,7 +2,7 @@
 
 This section applies on the Windows PC only, not on the Linux desktop `g`.
 
-The PC has PowerShell 7.6 (`pwsh.exe`). The Claude Code agent shell and the desktop Terminal panel both run it. Checked 2026-10-03. `powershell.exe` is the old Windows PowerShell 5.1. Most broken commands on this PC came from mixing the two.
+The PC has PowerShell 7.6 (`pwsh.exe`). The Claude Code agent shell runs it. Checked 2026-10-03. The desktop Terminal panel can run Windows PowerShell 5.1 (seen 2026-10-04), so a command for the user must work in both. `powershell.exe` is the old Windows PowerShell 5.1. Most broken commands on this PC came from mixing the two.
 
 - Check your own shell once per session: `$PSVersionTable.PSVersion`. On 7.x, `&&`, `||`, `?:`, `??` and `?.` work. On 5.x they fail with "The token '&&' is not a valid statement separator". Then use `A; if ($?) { B }`.
 - Never wrap a command in `powershell -Command "..."`. That starts 5.1, and your shell expands each `$` inside the double quotes first. For a child shell, write a `.ps1` file and run `pwsh -NoProfile -File <file>.ps1`.
