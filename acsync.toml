@@ -48,6 +48,7 @@ adopt_heading = "## MANDATORY: Undo commands are copy-only"
 [rules.hand-written]
 [rules.no-bak]
 [rules.license]
+[rules.version-tags]
 
 # ---------- skills (all 8 skills folders) ----------
 # ste-writing: retired; must not exist in any skills folder.
