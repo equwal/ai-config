@@ -1,18 +1,23 @@
 """Shared HTTP client for the memstate CLI scripts.
 
-Two modes, mirroring the TS proxy:
+Three modes, mirroring the TS proxy:
 
   * attach  — MEMSTATE_ADDR is set: talk to a daemon someone else started.
               We never spawn, never kill.
-  * child   — MEMSTATE_ADDR is unset: spawn `memstated --owner-pid=<us>`,
-              read the "MEMSTATE_READY addr=..." banner from its stderr,
-              SIGTERM on script exit. 1:1 lifetime with this Python process.
+  * shared  — the default: a shared daemon published its address in
+              daemon.addr next to the DB and answers /health. We attach.
+              The scripts never start a shared daemon; the MCP proxy does.
+  * child   — no shared daemon, or MEMSTATE_CHILD=1: spawn
+              `memstated --owner-pid=<us>`, read the "MEMSTATE_READY
+              addr=..." banner from its stderr, SIGTERM on script exit.
+              1:1 lifetime with this Python process.
 
 The child is cached on the module, so a single script that imports this
 module and makes several requests reuses one daemon.
 
 Env:
   MEMSTATE_ADDR       attach to this host:port (attach mode)
+  MEMSTATE_CHILD      1 skips daemon.addr and spawns a private daemon
   MEMSTATE_BIN        override the daemon path (default: sibling build / PATH)
   MEMSTATE_LOCAL_URL  full base URL override (for both modes)
   MEMSTATE_DB         the child's DB; the daemon log goes in the same directory
@@ -34,6 +39,36 @@ from typing import Optional
 
 READY_RE = re.compile(r"MEMSTATE_READY addr=(\S+)")
 _READY_TIMEOUT = 5.0
+
+
+def _load_config_file() -> None:
+    """Export ~/.memstate/config.env into os.environ for keys the environment
+    does not already set: the daemon's rule (server/config.go), so the
+    scripts, the proxy and the daemon see one configuration. MEMSTATE_CONFIG
+    names another file; MEMSTATE_CONFIG=off skips it."""
+    raw = os.environ.get("MEMSTATE_CONFIG", "")
+    if raw == "off":
+        return
+    path = Path(os.path.expanduser(raw)) if raw else Path.home() / ".memstate" / "config.env"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("export "):
+            line = line[len("export "):].strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key, value = key.strip(), value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if key.startswith("MEMSTATE_") and not os.environ.get(key):
+            os.environ[key] = value
+
+
+_load_config_file()
 
 _child: Optional[subprocess.Popen] = None
 _base_url: Optional[str] = None
@@ -60,6 +95,24 @@ def _memstate_dir() -> Path:
             db = str(Path.home() / db[2:])
         return Path(db).resolve().parent
     return Path.home() / ".memstate"
+
+
+def _published_addr() -> str:
+    """The address in daemon.addr next to the DB when a memstate daemon
+    answers /health there, else ""."""
+    try:
+        addr = (_memstate_dir() / "daemon.addr").read_text().strip()
+    except OSError:
+        return ""
+    if not addr:
+        return ""
+    try:
+        with urllib.request.urlopen(f"http://{addr}/health", timeout=0.5) as resp:
+            if json.load(resp).get("service") == "memstate":
+                return addr
+    except Exception:
+        pass
+    return ""
 
 
 def _spawn_child() -> str:
@@ -170,6 +223,11 @@ def _base() -> str:
     if attach_addr:
         _base_url = f"http://{attach_addr}/api/v1"
         return _base_url
+    if os.environ.get("MEMSTATE_CHILD") != "1":
+        published = _published_addr()
+        if published:
+            _base_url = f"http://{published}/api/v1"
+            return _base_url
     # Child mode: spawn exactly once (thread-safe via the lock).
     with _started_lock:
         if _child is None:
@@ -254,6 +312,21 @@ def is_home_dir() -> bool:
         return Path.cwd().resolve() == Path.home().resolve()
     except Exception:
         return False
+
+
+def system_dir_reason() -> str:
+    """Why the cwd can name no project: a filesystem root, the Windows
+    directory, or a Unix system tree. "" for an ordinary directory. Same
+    rule as the TS proxy (systemDirReason)."""
+    cwd = Path.cwd().resolve()
+    if cwd == Path(cwd.anchor):
+        return "a filesystem root"
+    win = os.environ.get("SystemRoot") or os.environ.get("windir")
+    if win and str(cwd).lower().startswith(str(Path(win).resolve()).lower()):
+        return "the Windows system directory"
+    if re.match(r"^/(usr|bin|sbin|etc|lib|lib64|opt|proc|sys|dev|boot)(/|$)", cwd.as_posix()):
+        return "a system directory"
+    return ""
 
 
 def slug_name(name: str) -> str:
@@ -389,21 +462,16 @@ def check_write_target(args, project: str) -> None:
         return
     explicit = bool(args.project)
     if not explicit:
-        if os.environ.get("MEMSTATE_REQUIRE_PROJECT") == "1":
-            raise SystemExit(
-                "Error: MEMSTATE_REQUIRE_PROJECT=1: a write needs a project. Pass "
-                f'--project ID (for this directory "{project}", an id from '
-                "memstate_get.py --list-projects, or a new id with --new-project), "
-                "or --scope user for facts about this machine")
         if in_git_repo():
             if args.new_project:
                 raise SystemExit(
                     "Error: --new-project has no effect here: the project of the git "
                     f'repository you are in ("{project}") is created without it')
             return
-        if is_home_dir():
+        why = "your home directory" if is_home_dir() else system_dir_reason()
+        if why:
             raise SystemExit(
-                "Error: the working directory is your home directory, which has no "
+                f"Error: the working directory is {why}, which has no "
                 "default project for writes. Pass --project ID (an id from "
                 "memstate_get.py --list-projects, or a new id with --new-project), "
                 "or --scope user for facts about this machine")

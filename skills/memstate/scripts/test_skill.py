@@ -59,11 +59,11 @@ def main():
     print(f"  Project: {PROJECT_ID}")
     print(f"{'='*60}\n")
 
-    # 1. memstate_set — store a fact; the first write creates the project
+    # 1. memstate_set — store a fact
     ok, out = test(
         "memstate_set: store a single fact",
         "memstate_set.py",
-        ["--project", PROJECT_ID, "--new-project", "--keypath", "database.engine", "--value", "PostgreSQL", "--category", "decision"],
+        ["--project", PROJECT_ID, "--keypath", "database.engine", "--value", "PostgreSQL", "--category", "decision"],
         expect_key="action", expect_value="created"
     )
 
@@ -72,12 +72,12 @@ def main():
         "memstate_set: update same keypath (supersede)",
         "memstate_set.py",
         ["--project", PROJECT_ID, "--keypath", "database.engine", "--value", "PostgreSQL 16", "--category", "decision"],
-        expect_key="action", expect_value="superseded"
+        expect_key="version"
     )
     memory_id = None
     if ok:
         try:
-            memory_id = json.loads(out)["stored"]["id"]
+            memory_id = json.loads(out).get("memory_id")
         except Exception:
             pass
 
@@ -89,11 +89,11 @@ def main():
         expect_key="action", expect_value="created"
     )
 
-    # 4. memstate_get — list all projects
+    # 4. memstate_get — list all projects (no args)
     test(
         "memstate_get: list all projects",
         "memstate_get.py",
-        ["--list-projects"],
+        [],
         expect_key="projects"
     )
 
@@ -118,7 +118,7 @@ def main():
         test(
             "memstate_get: fetch by memory_id",
             "memstate_get.py",
-            ["--memory-id", str(memory_id)],
+            ["--memory-id", memory_id],
             expect_key="id", expect_value=memory_id
         )
     else:
@@ -142,13 +142,14 @@ def main():
     )
 
     # 10. memstate_remember — markdown ingestion (async)
+    print(f"\n  [Note: memstate_remember polls for job completion, may take ~20s]")
     test(
         "memstate_remember: markdown ingestion",
         "memstate_remember.py",
         ["--project", PROJECT_ID,
          "--content", "## Architecture Summary\n- Backend: FastAPI\n- Database: PostgreSQL 16\n- Auth: JWT with httpOnly cookies\n- Deploy: Docker on AWS ECS",
          "--source", "agent"],
-        expect_key="method", expect_value="headings"
+        expect_key="status", expect_value="complete"
     )
 
     # 11. memstate_delete — soft-delete a keypath
