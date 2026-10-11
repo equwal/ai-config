@@ -25,7 +25,6 @@ skills = ["${home}/.gemini/skills", "${home}/.gemini/antigravity/skills"]
 mcp = { format = "json", path = "${home}/.gemini/config/mcp_config.json" }
 
 # ---------- rules (one file each; order = order for newly added blocks) ----------
-[rules.coop]
 [rules.install]
 [rules.no-user-todo]
 targets = ["claude", "codex", "copilot", "antigravity"]
@@ -67,7 +66,6 @@ adopt_heading = "## Shell gotchas"
 [skills.call-transcript]
 [skills.ccai-license]
 [skills.chrome]
-[skills.coop]
 [skills.deploy-handoff]
 only.claude = ["g"]      # the PC uses the deploy-handoff plugin instead
 [skills.docs-manage]
@@ -89,12 +87,6 @@ only.claude = ["g"]      # the PC uses the deploy-handoff plugin instead
 [skills.verification-before-completion]
 
 # ---------- MCP servers ----------
-[mcp.coop]
-command = "${coop_bin}"
-args = ["mcp"]
-[mcp.coop.target.codex]
-default_tools_approval_mode = "approve"
-
 [mcp.headroom]
 command = "${headroom_bin}"
 args = ["mcp", "serve"]
