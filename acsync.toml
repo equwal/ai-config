@@ -76,6 +76,7 @@ only.claude = ["g"]      # the PC uses the deploy-handoff plugin instead
 [skills.learn-mode]
 [skills.memstate]
 [skills.memstate-precompact]
+[skills.memstate-upgrade]
 [skills.ponytail]
 [skills.powershell]
 [skills.regression-bisect]
