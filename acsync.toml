@@ -86,6 +86,7 @@ only.claude = ["g"]      # the PC uses the deploy-handoff plugin instead
 [skills.sshp]
 [skills.ste100]
 [skills.structural-refactor]
+[skills.tokensave-upgrade]
 [skills.verification-before-completion]
 
 # ---------- MCP servers ----------
