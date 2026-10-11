@@ -49,6 +49,15 @@ adopt_heading = "## MANDATORY: Undo commands are copy-only"
 [rules.no-bak]
 [rules.license]
 [rules.version-tags]
+[rules.execution-style]
+adopt_heading = "## Execution style"
+[rules.trigger-words]
+adopt_heading = "## Trigger words"
+[rules.devices-hosts]
+machines = ["pc"]        # PC devices and drives; the Viwoods hangs off the PC
+adopt_heading = "## Devices & hosts"
+[rules.shell-gotchas]
+adopt_heading = "## Shell gotchas"
 
 # ---------- skills (all 8 skills folders) ----------
 # ste-writing: retired; must not exist in any skills folder.
