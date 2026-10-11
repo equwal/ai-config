@@ -15,12 +15,13 @@ Three places run memstate. Upgrade all three, then verify each.
    Then copy `~/go/bin/memstated.exe` over `~/go/bin/memstate.exe` (same binary, the CLI
    dispatches on its name).
 2. Proxy. The global npm package `@memstate/mcp` is a junction to
-   `W:\src\memstate-main\client` (worktree of `C:\Users\Administrator\src\memstate`, branch main).
-   `git -C W:/src/memstate-main fetch origin; git -C W:/src/memstate-main merge --ff-only origin/main`,
+   `C:\Users\Administrator\src\memstate-main\client`, a detached worktree of
+   `C:\Users\Administrator\src\memstate`. It stays on C: because the W: USB disk logs I/O errors.
+   `git -C C:/Users/Administrator/src/memstate fetch origin; git -C C:/Users/Administrator/src/memstate-main checkout --detach origin/main`,
    then in `client/`: `npm ci; npm run build`.
    Never `npm install @memstate/mcp`: the npm registry package is another project.
 3. Verify against the live daemon:
-   `$env:MEMSTATE_ADDR='10.66.0.1:8767'; node W:/src/memstate-main/client/dist/index.js --test`
+   `$env:MEMSTATE_ADDR='10.66.0.1:8767'; node C:/Users/Administrator/src/memstate-main/client/dist/index.js --test`
 4. Skills. Copy `client/skill` and `client/skill-precompact` into `W:\src\ai-config\skills\memstate`
    and `skills\memstate-precompact`, and into the 5 PC skill folders
    (`~/.claude/skills`, `~/.codex/skills`, `~/.copilot/skills`, `~/.gemini/skills`,
