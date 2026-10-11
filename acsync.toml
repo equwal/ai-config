@@ -122,8 +122,8 @@ args = ["windows-mcp", "serve", "--transport", "stdio"]
 
 [mcp.tokensave]
 machines = ["pc"]
-command = "cmd"
-args = ["/c", '${home}\.tokensave-none\serve-tokensave.cmd']
+command = '${home}\.cargo\bin\tokensave.exe'
+args = ["serve"]
 
 [mcp.qwen]
 machines = ["pc"]
